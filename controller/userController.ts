@@ -79,8 +79,4 @@ const getMe = asyncHandler(async (req:Request, res:Response) => {
 
 
 
-module.exports = {
-    registerUser,
-    loginUser,
-    getMe,
-}
+export { registerUser, loginUser, getMe };
