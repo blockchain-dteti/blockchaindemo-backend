@@ -1,82 +1,85 @@
-const jwt = require('jsonwebtoken')
-const bcrypt = require('bcryptjs')
-const asyncHandler = require('express-async-handler')
-const User = require('../model/userModel')
-import { Request, Response } from 'express';
+import jwt from 'jsonwebtoken'
+import bcrypt from 'bcryptjs'
+import User from '../models/User'
+import { Request,Response } from 'express';
 
-
-// @desc    Register new user
-// @route   POST /api/users
-// @access  Public
-const registerUser = asyncHandler(async (req:Request, res:Response) => {
-    const { name, email, password } = req.body
-    // console.log(name, email, password)
-    if (!name || !email || !password) {
-        res.status(400)
-        throw new Error('Please add all fields')
+async function getUser(req:Request,res:Response){
+    try{
+        const users = await User.findAll({
+            attributes: ['id', 'name']
+        });
+        res.json(users);
+    } catch{
+        console.log("Error");
+        res.status(500).json({msg: "Error"});
     }
+};
 
-    // Check if user exists
-    const userExists = await User.findOne({ email })
-
-    if (userExists) {
-        res.status(400)
-        throw new Error('User already exists')
+async function createUser(req:Request,res:Response){
+    try{
+        const {name, password} = req.body;
+        const salt = await bcrypt.genSalt(10);
+        const hash = await bcrypt.hash(password, salt);
+        const user = await User.create({
+            name,
+            password
+        });
+        res.json(user);
+    } catch{
+        console.log("Error");
+        res.status(500).json({msg: "Error"});
     }
+};
 
-    // Hash password
-    const salt = await bcrypt.genSalt(10)
-    const hashedPassword = await bcrypt.hash(password, salt)
+async function login(req:Request,res:Response){
+    try{
+        const user = await users.findAll({
+            where:{
+                name: req.body.name
+            }
+        });
+        const match = await bcrypt.compare(req.body.password, user[0].password)
+        if(!match) res.status(400).json({msg: "Password tidak sesuai"})
+        const userId = user[0].id
+        const name = user[0].name
+        const accessToken = jwt.sign({userId, name}, process.env.ACCESS_TOKEN_SECRET, {
+            expiresIn: '20s'
+        })
+        const refreshToken = jwt.sign({userId, name}, process.env.REFRESH_TOKEN_SECRET, {
+            expiresIn: '1d'
+        })
+        await users.update({refresh_token:refreshToken}, {
+            where:{
+                id:userId
+            }
+        })
+        res.cookie('refreshToken', refreshToken, {
+            httpOnly:true,
+            maxAge: 24 * 60 * 60 * 1000
+        })
+        res.json({accessToken})
+    }catch{ 
+        res.status(404).json({msg:"Username tidak ditemukan"})
+    }
+}
 
-    // Create user
-    const user = await User.create({
-        name,
-        email,
-        password: hashedPassword,
+async function logout (req:Request,res:Response){
+    const refreshToken = req.cookies.refreshToken;
+    if(!refreshToken) return res.sendStatus(204);
+    const user = await users.findAll({
+        where:{
+            refresh_token: refreshToken
+       }
     })
+    if(!user[0]) return res.sendStatus(204)
+    const userId = user[0].id
+    await users.update({refreshToken: null}, {
+        where:{
+            id: userId
+        }
+    })
+    res.clearCookie('refreshToken');
+    return res.sendStatus(200)
+}
 
-    if (user) {
-        res.status(201).json({
-        _id: user.id,
-        name: user.name,
-        email: user.email,
-        })
-    } else {
-        res.status(400)
-        throw new Error('Invalid user data')
-    }
-})
-
-// @desc    Authenticate a user
-// @route   POST /api/users/login
-// @access  Public
-const loginUser = asyncHandler(async (req:Request, res:Response) => {
-    const { email, password } = req.body
-
-    // Check for user email
-    const user = await User.findOne({ email })
-
-    if (user && (await bcrypt.compare(password, user.password))) {
-        res.json({
-        _id: user.id,
-        name: user.name,
-        email: user.email,
-        })
-    } else {
-        res.status(400).send({
-            status : 400,
-            message : "Invalid credentials"
-        })
-    }
-})
-
-// @desc    Get user data
-// @route   GET /api/users/me
-// @access  Private
-const getMe = asyncHandler(async (req:Request, res:Response) => {
-    res.status(200).json(req.body.user)
-})
-
-
-
-export { registerUser, loginUser, getMe };
+export {getUser, createUser, login, logout};

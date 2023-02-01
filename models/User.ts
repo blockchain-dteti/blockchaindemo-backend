@@ -1,22 +1,19 @@
-import mongoose from "mongoose";
-import { Date } from "mongoose";
+import { Sequelize, DataTypes } from "sequelize";
+import db from "../config/database";
 
-const userSchema = new mongoose.Schema({
-    name: {
-        type: String,
-        required: [true, "Please enter a name"],
+
+const users = db.define('user', {
+    name : {
+        type: DataTypes.STRING
     },
-    email: {
-        type: String,
-        required: [true, "Please enter an email"],
-        unique: true,
+    password : {
+        type: DataTypes.STRING
     },
-    password: {
-        type: String,
-        required: [true, "Please enter a password"],
+    refreshToken : {
+        type: DataTypes.TEXT
     },
 }, {
-    timestamps: true,
+    freezeTableName: true,
 });
 
-export default mongoose.model("User", userSchema);
+export default users;

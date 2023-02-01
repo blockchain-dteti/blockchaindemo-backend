@@ -1,15 +1,14 @@
-import express from 'express'                          // import express
+import express from 'express';
+import { getUser, newUser, login, logout } from '../controller/userController';
+import { verifyToken } from '../middleware/verifyToken';
+import { refreshToken } from '../controller/refreshToken';
 
-import { registerUser,loginUser, getMe } from '../controller/userController'
-const route = express.Router()                          // create router
+const route = express.Router()
 
+route.get('/users', verifyToken, getUser)
+route.post('/users', newUser)
+route.post('/login', login)
+route.get('/token', refreshToken)
+route.delete('/logout', logout)
 
-
-
-
-route.post('/api/register', registerUser)
-route.post('/api/login', loginUser)
-route.get('/api/me', getMe)
-
-// Export route
 export default route;
